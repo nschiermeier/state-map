@@ -33,7 +33,9 @@ merged = continental_states.merge(df, left_on="STUSPS", right_on="STATE", how="l
 # get all the years and create a color map for them. If year is NA, then set it's color to gray.
 years = sorted(df["YEAR"].dropna().unique().astype(int))
 cmap = plt.cm.get_cmap("tab20", len(years))
-color_dict = {year: cmap(i) for i, year in enumerate(years)}
+# Get all 20 colors, but skip indices 14 and 15 (They are gray, same as missing state)
+all_colors = [cmap(i/20) for i in range(20) if i not in (14, 15)]
+color_dict = {year: all_colors[i] for i, year in enumerate(years)}
 merged["color"] = merged["YEAR"].map(color_dict)
 merged["color"] = merged["color"].apply(lambda x: x if isinstance(x, tuple) else (0.85, 0.85, 0.85, 1.0))
 
@@ -42,13 +44,16 @@ merged["color"] = merged["color"].apply(lambda x: x if isinstance(x, tuple) else
 fig, ax = plt.subplots(figsize=(12,7))
 merged.plot(color=merged["color"], ax=ax, edgecolor='black', linewidth=0.8)
 
-# Add count of states / year
+# Add count of states / year, as well as remaining count
 year_counts = df["YEAR"].dropna().astype(int).value_counts()
+no_year_counts = df["YEAR"].isna().sum()
 
 legend_patches = [
-  mpatches.Patch(color=color_dict[yr], label=f"{yr} ({year_counts.get(yr, 0)}") for yr in years
+  mpatches.Patch(color=color_dict[yr], label=f"{yr} ({year_counts.get(yr, 0)})") for yr in years
 ]
-legend_patches.append(mpatches.Patch(color=(0.85, 0.85, 0.85, 1.0), label="No Data"))
+legend_patches.append(mpatches.Patch(color=(0.85, 0.85, 0.85, 1.0), 
+                      label=f"Not Visited \n({no_year_counts} Remaining)")
+)
 
 ax.legend(handles=legend_patches,
           title="Year",
