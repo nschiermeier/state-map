@@ -1,4 +1,5 @@
 import json
+import math
 import os
 
 import geopandas as gpd
@@ -32,17 +33,30 @@ merged = continental_states.merge(df, left_on="STUSPS", right_on="STATE", how="l
 
 # get all the years and create a color map for them. If year is NA, then set it's color to gray.
 years = sorted(df["YEAR"].dropna().unique().astype(int))
-cmap = plt.cm.get_cmap("tab20", len(years))
-# Get all 20 colors, but skip indices 14 and 15 (They are gray, same as missing state)
-all_colors = [cmap(i/20) for i in range(20) if i not in (14, 15)]
-color_dict = {year: all_colors[i] for i, year in enumerate(years)}
+# Create custom colormap that can be expanded if need be, and also doesn't have gray
+tab20_no_gray = [
+  "#1f77b4", "#aec7e8",  # blue pair
+  "#ff7f0e", "#ffbb78",  # orange pair
+  "#2ca02c", "#98df8a",  # green pair
+  "#d62728", "#ff9896",  # red pair
+  "#9467bd", "#c5b0d5",  # purple pair
+  "#8c564b", "#c49c94",  # brown pair
+  "#e377c2", "#f7b6d2",  # pink pair
+  # skipping grays (14, 15)
+  "#bcbd22", "#dbdb8d",  # yellow-green pair
+  "#17becf", "#9edae5",  # cyan pair
+]
+color_dict = {year: tab20_no_gray[i] for i, year in enumerate(years)}
 merged["color"] = merged["YEAR"].map(color_dict)
-merged["color"] = merged["color"].apply(lambda x: x if isinstance(x, tuple) else (0.85, 0.85, 0.85, 1.0))
+merged["color"] = merged["color"].apply(lambda x: x if x is not None and not (isinstance(x, float) and math.isnan(x)) else (0.85, 0.85, 0.85, 1.0))
 
-# Just get continental?
 # Plot
 fig, ax = plt.subplots(figsize=(12,7))
 merged.plot(color=merged["color"], ax=ax, edgecolor='black', linewidth=0.8)
+
+# Hatch layer for airport states
+airport_states = merged[merged["AIRPORT"]==1]
+airport_states.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=0.8, hatch='///')
 
 # Add count of states / year, as well as remaining count
 year_counts = df["YEAR"].dropna().astype(int).value_counts()
@@ -54,6 +68,7 @@ legend_patches = [
 legend_patches.append(mpatches.Patch(color=(0.85, 0.85, 0.85, 1.0), 
                       label=f"Not Visited \n({no_year_counts} Remaining)")
 )
+legend_patches.append(mpatches.Patch(facecolor='white', edgecolor='black', hatch='///', label="Airport Only"))
 
 ax.legend(handles=legend_patches,
           title="Year",
@@ -67,7 +82,7 @@ polygon = Polygon([(-170,50),(-170,72),(-140,72),(-140,50)])
 alaska_gdf = states[states["STUSPS"] == 'AK']
 merged_ak = alaska_gdf.merge(df, left_on="STUSPS", right_on="STATE", how="left")
 merged_ak["color"] = merged_ak["YEAR"].dropna().astype(int).map(color_dict)
-merged_ak["color"] = merged_ak["color"].apply(lambda x: x if isinstance(x, tuple) else (0.85, 0.85, 0.85, 1.0))
+merged_ak["color"] = merged_ak["color"].apply(lambda x: x if x is not None and not (isinstance(x, float) and math.isnan(x)) else (0.85, 0.85, 0.85, 1.0))
 merged_ak.clip(polygon).plot(color=merged_ak.clip(polygon)["color"], ax=akax, edgecolor='black', linewidth=0.8)
 
 
@@ -76,11 +91,11 @@ hiax.axis('off')
 hawaii_gdf = states[states["STUSPS"] == 'HI']
 merged_hi = hawaii_gdf.merge(df, left_on="STUSPS", right_on="STATE", how="left")
 merged_hi["color"] = merged_hi["YEAR"].dropna().astype(int).map(color_dict)
-merged_hi["color"] = merged_hi["color"].apply(lambda x: x if isinstance(x, tuple) else (0.85, 0.85, 0.85, 1.0))
+merged_hi["color"] = merged_hi["color"].apply(lambda x: x if x is not None and not (isinstance(x, float) and math.isnan(x)) else (0.85, 0.85, 0.85, 1.0))
 merged_hi.plot(color=merged_hi["color"], ax=hiax, edgecolor='black', linewidth=0.8)
 
 
-ax.set_title('Map of the United States')
+ax.set_title('Map of U.S. States I\'ve Visited, by Year ')
 ax.set_axis_off()
 
 plt.show()
